@@ -3,18 +3,25 @@ from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional
 from random import randrange
+import psycopg
+import time
+from psycopg.rows import dict_row
+from dotenv import load_dotenv, find_dotenv
+import os
+
+load_dotenv()
+
 
 app = FastAPI()
 
 class Post(BaseModel):
     # estende la classe BaseModel di Pydantic
-    
     title: str
     content: str
     # campo con valore di default
     published: bool = True
     # campo opzionale
-    rating: Optional[int] = None
+
 
 my_posts = [{"title": "title of post 1", "content": "content of post 1", "id": 1},
             {"title": "title of post 2", "content": "content of post 2", "id": 2}]
@@ -33,9 +40,20 @@ def find_index_post(id):
 def root():
     return {"message": "welcome to my api!!!!"}
 
+db_password = os.getenv('DB_PASS')
+db_name = os.getenv('DB_NAME')
+db_user = os.getenv('DB_USER')
+
+
 @app.get("/posts")
 def get_posts():
-    return {"data": my_posts}
+    with psycopg.connect(f'host=localhost dbname={db_name}_db user={db_user} password={db_password}') as conn:
+    # Apre un cursore per fare le operazioni sul db
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("""SELECT * FROM posts""")
+            posts = cur.fetchall()
+            print(posts)
+            return {"data": posts}
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_posts(post: Post):
